@@ -2,8 +2,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const quizContainer = document.getElementById("quiz-container");
   const submitBtn = document.getElementById("submit-btn");
   const resultContainer = document.getElementById("result-container");
-  let baseURL = "https://readquest-nb-hnhwhfd8abfphvd3.eastus-01.azurewebsites.net/prompt";
-
+  let baseURL =
+    "https://readquest-nb-lnx-ewdjhehedkdnd3fr.eastus-01.azurewebsites.net/prompt";
+  let quizData = "";
+  
   //Get Heading
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     chrome.scripting.executeScript(
@@ -26,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function buildFetchRequest(heading) {
     let encodedQuery = encodeURIComponent(heading);
     url = `${baseURL}?query=${encodedQuery}`;
+    console.log(url);
 
     try {
       const response = await fetch(url);
@@ -34,13 +37,14 @@ document.addEventListener("DOMContentLoaded", () => {
         .replace(/```json/g, "")
         .replace(/```/g, "")
         .trim();
-      const quizData = JSON.parse(data);
+      quizData = JSON.parse(data);
       renderQuiz(quizData);
     } catch (error) {
       console.error("Error fetching quiz data:", error);
     }
   }
 
+  //Rendering the quiz data
   function renderQuiz(quizData) {
     quizContainer.innerHTML = "";
     quizData.questions.forEach((question, index) => {
@@ -68,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
         optionDiv.appendChild(optionInput);
         optionDiv.appendChild(optionLabel);
         questionDiv.appendChild(optionDiv);
-        submitBtn.innerHTML = 'Submit'
+        submitBtn.innerHTML = "Submit";
       }
 
       quizContainer.appendChild(questionDiv);
@@ -77,11 +81,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   submitBtn.addEventListener("click", () => {
     let score = 0;
+    console.log(quizData);
     quizData.questions.forEach((question, index) => {
       const selectedOption = document.querySelector(
         `input[name="question${index}"]:checked`
       );
-      if (selectedOption && question.ans.includes(selectedOption.value)) {
+      if (selectedOption && question.correctAnswer == selectedOption.value) {
         score++;
       }
     });
