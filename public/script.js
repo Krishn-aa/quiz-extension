@@ -2,10 +2,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const quizContainer = document.getElementById("quiz-container");
   const submitBtn = document.getElementById("submit-btn");
   const resultContainer = document.getElementById("result-container");
-  let baseURL =
-    "https://readquest-nb-lnx-ewdjhehedkdnd3fr.eastus-01.azurewebsites.net/prompt";
-  let quizData = "";
-  
+  const startButton = document.getElementById("start-button");
+  let baseURL = "https://readquest-nb-lnx-ewdjhehedkdnd3fr.eastus-01.azurewebsites.net/prompt";
+  let quizData;
+  let heading;
+
   //Get Heading
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     chrome.scripting.executeScript(
@@ -15,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       (results) => {
         if (results[0].result) {
-          buildFetchRequest(results[0].result);
+          heading = results[0].result;
           document.getElementById("title").innerText = results[0].result;
         } else {
           document.getElementById("title").innerText = "No MCQ Found";
@@ -24,11 +25,18 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
+  startButton.addEventListener("click", () => {
+    document.getElementById('loader').style.display = 'block';
+    buildFetchRequest(heading);
+    startButton.innerText = "generating...";
+    startButton.disabled = true;
+    document.getElementById('loader').style.display = 'none';
+  });
+
   // Populate Quiz
   async function buildFetchRequest(heading) {
     let encodedQuery = encodeURIComponent(heading);
     url = `${baseURL}?query=${encodedQuery}`;
-    console.log(url);
 
     try {
       const response = await fetch(url);
@@ -39,8 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
         .trim();
       quizData = JSON.parse(data);
       renderQuiz(quizData);
+      startButton.style.display = "none";
+      submitBtn.style.display = "block";
     } catch (error) {
-      console.error("Error fetching quiz data:", error);
+      console.log("Error fetching quiz data:", error);
+      startButton.innerText = "Try again";
+      startButton.disabled = false;
     }
   }
 
@@ -57,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       for (let i = 1; i <= 4; i++) {
         const optionDiv = document.createElement("div");
+        optionDiv.id = `question[${index}]-[option${i}]`;
         optionDiv.classList.add("option");
 
         const optionInput = document.createElement("input");
@@ -64,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
         optionInput.name = `question${index}`;
         optionInput.value = question[`option${i}`];
         optionInput.id = `question${index}-option${i}`;
+        optionInput.classList.add("radio-btn");
 
         const optionLabel = document.createElement("label");
         optionLabel.htmlFor = `question${index}-option${i}`;
@@ -81,17 +95,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
   submitBtn.addEventListener("click", () => {
     let score = 0;
-    console.log(quizData);
     quizData.questions.forEach((question, index) => {
-      const selectedOption = document.querySelector(
-        `input[name="question${index}"]:checked`
-      );
-      if (selectedOption && question.correctAnswer == selectedOption.value) {
-        score++;
+      let optionValue = '';
+      let isIntegerCheck = false;
+      let correctOptionNumber = 0;
+      if (question.correctAnswer.startsWith('option')) {
+        optionValue = question.correctAnswer.slice(-1);
+        isIntegerCheck = true;
+        if (!isNaN(optionValue)) {
+          correctOptionNumber = parseInt(optionValue, 10);
+        }
+      }
+      else
+        optionValue = question.correctAnswer;
+      for (let i = 1; i <= 4; i++) {
+        const optionDiv = document.getElementById(`question[${index}]-[option${i}]`);
+        const option = document.getElementById(`question${index}-option${i}`);
+        console.log(option.value);
+        console.log(question.correctAnswer);
+        if ((!isIntegerCheck && question.correctAnswer == option.value) || (isIntegerCheck && correctOptionNumber == i))
+          optionDiv.classList.add("correct-option");
+        if (option.checked) {
+          if ((!isIntegerCheck && question.correctAnswer != option.value) || (isIntegerCheck && correctOptionNumber !== i))
+            optionDiv.classList.add("wrong-option");
+          else
+            score++;
+        }
       }
     });
     resultContainer.textContent = `Your score: ${score}/${quizData.questions.length}`;
+    submitBtn.style.display = "none";
   });
+
 });
 
 function getH1Element() {
